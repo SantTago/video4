@@ -33,8 +33,8 @@
       height: 100dvh;
 
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
 
       background: #000;
       overflow: hidden;
@@ -55,52 +55,61 @@
       background: #000;
     }
 
-    /* BOTÃO PARA ATIVAR SOM */
-    .sound-button {
+    /* PLAY CENTRAL */
+    .play-button {
       position: absolute;
 
-      top: 25px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
 
-      z-index: 20;
+      transform: translate(-50%, -50%);
 
-      border: 0;
+      width: 82px;
+      height: 82px;
 
-      padding: 12px 20px;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
 
-      border-radius: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-      color: #fff;
+      background: rgba(0, 0, 0, 0.45);
 
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-
-      background: linear-gradient(
-        90deg,
-        #00c6ff,
-        #7b61ff,
-        #ff4fa3
-      );
-
-      box-shadow:
-        0 4px 20px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
 
       cursor: pointer;
 
+      z-index: 20;
+
       transition:
-        opacity 0.3s ease,
-        transform 0.3s ease;
+        opacity 0.25s ease,
+        transform 0.25s ease;
     }
 
-    .sound-button.hide {
+    .play-button::after {
+      content: "";
+
+      margin-left: 6px;
+
+      width: 0;
+      height: 0;
+
+      border-top: 14px solid transparent;
+      border-bottom: 14px solid transparent;
+      border-left: 22px solid #fff;
+    }
+
+    .play-button:hover {
+      transform:
+        translate(-50%, -50%)
+        scale(1.08);
+    }
+
+    .play-button.hide {
       opacity: 0;
       pointer-events: none;
-
-      transform:
-        translateX(-50%)
-        translateY(-10px);
     }
 
     /* BARRA DE PROGRESSO */
@@ -121,7 +130,7 @@
 
       cursor: pointer;
 
-      z-index: 10;
+      z-index: 15;
     }
 
     .progress-bar {
@@ -156,17 +165,14 @@
       .progress-container {
         left: 15px;
         right: 15px;
-        bottom: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
 
         height: 5px;
       }
 
-      .sound-button {
-        top: calc(20px + env(safe-area-inset-top));
-
-        font-size: 13px;
-
-        padding: 11px 18px;
+      .play-button {
+        width: 78px;
+        height: 78px;
       }
     }
 
@@ -183,9 +189,8 @@
       }
 
       .progress-container {
-        max-width: 500px;
-
         width: calc(100% - 40px);
+        max-width: 500px;
 
         left: 50%;
 
@@ -201,8 +206,6 @@
 
     <video
       id="videoPrincipal"
-      autoplay
-      muted
       playsinline
       webkit-playsinline
       preload="auto"
@@ -219,12 +222,11 @@
 
 
     <button
-      class="sound-button"
-      id="soundButton"
+      id="playButton"
+      class="play-button"
       type="button"
-    >
-      🔊 Toque para ativar o som
-    </button>
+      aria-label="Reproduzir vídeo"
+    ></button>
 
 
     <div
@@ -247,8 +249,8 @@
     const video =
       document.getElementById("videoPrincipal");
 
-    const soundButton =
-      document.getElementById("soundButton");
+    const playButton =
+      document.getElementById("playButton");
 
     const progressContainer =
       document.getElementById("progressContainer");
@@ -258,23 +260,29 @@
 
 
     /*
-    ==========================
-    AUTOPLAY
-    ==========================
+    =========================
+    PLAY + ÁUDIO
+    =========================
     */
 
     async function iniciarVideo() {
 
-      video.muted = true;
-
       try {
 
+        /* ATIVA O SOM ANTES DO PLAY */
+        video.muted = false;
+        video.volume = 1;
+
+        /* INICIA O VÍDEO */
         await video.play();
+
+        /* ESCONDE O PLAY */
+        playButton.classList.add("hide");
 
       } catch (erro) {
 
         console.log(
-          "Autoplay bloqueado:",
+          "Erro ao reproduzir vídeo:",
           erro
         );
 
@@ -283,143 +291,76 @@
     }
 
 
-    window.addEventListener(
-      "load",
+    playButton.addEventListener(
+      "click",
       iniciarVideo
     );
 
 
     /*
-    ==========================
-    ATIVAR SOM
-    ==========================
-    */
-
-    async function ativarSom() {
-
-      try {
-
-        video.muted = false;
-
-        video.volume = 1;
-
-        await video.play();
-
-        soundButton.classList.add("hide");
-
-      } catch (erro) {
-
-        console.log(
-          "Não foi possível ativar o áudio:",
-          erro
-        );
-
-      }
-
-    }
-
-
-    soundButton.addEventListener(
-      "click",
-      ativarSom
-    );
-
-
-    soundButton.addEventListener(
-      "touchend",
-      function (event) {
-
-        event.preventDefault();
-
-        ativarSom();
-
-      },
-      {
-        passive: false
-      }
-    );
-
-
-    /*
-    ==========================
-    PROGRESSO DO VÍDEO
-    ==========================
+    =========================
+    BARRA DE PROGRESSO
+    =========================
     */
 
     video.addEventListener(
       "timeupdate",
       function () {
 
-        if (video.duration) {
+        if (!video.duration) return;
 
-          const porcentagem =
-            (
-              video.currentTime /
-              video.duration
-            ) * 100;
+        const porcentagem =
+          (
+            video.currentTime /
+            video.duration
+          ) * 100;
 
-          progressBar.style.width =
-            porcentagem + "%";
-
-        }
+        progressBar.style.width =
+          porcentagem + "%";
 
       }
     );
 
 
     /*
-    ==========================
+    =========================
     AVANÇAR / VOLTAR
-    ==========================
+    =========================
     */
-
-    function alterarTempo(event) {
-
-      const rect =
-        progressContainer.getBoundingClientRect();
-
-      let posicao;
-
-      if (event.touches) {
-
-        posicao =
-          event.touches[0].clientX -
-          rect.left;
-
-      } else {
-
-        posicao =
-          event.clientX -
-          rect.left;
-
-      }
-
-      const porcentagem =
-        Math.min(
-          Math.max(
-            posicao / rect.width,
-            0
-          ),
-          1
-        );
-
-      video.currentTime =
-        porcentagem *
-        video.duration;
-
-    }
-
 
     progressContainer.addEventListener(
       "click",
-      alterarTempo
+      function (event) {
+
+        if (!video.duration) return;
+
+        const rect =
+          progressContainer.getBoundingClientRect();
+
+        const posicao =
+          event.clientX - rect.left;
+
+        const porcentagem =
+          Math.min(
+            Math.max(
+              posicao / rect.width,
+              0
+            ),
+            1
+          );
+
+        video.currentTime =
+          porcentagem *
+          video.duration;
+
+      }
     );
 
 
     /*
-    ==========================
-    PLAY / PAUSE
-    ==========================
+    =========================
+    PAUSAR TOCANDO NO VÍDEO
+    =========================
     */
 
     video.addEventListener(
@@ -428,13 +369,38 @@
 
         if (video.paused) {
 
+          video.muted = false;
+          video.volume = 1;
+
           video.play();
+
+          playButton.classList.add("hide");
 
         } else {
 
           video.pause();
 
+          playButton.classList.remove("hide");
+
         }
+
+      }
+    );
+
+
+    /*
+    =========================
+    QUANDO TERMINAR
+    =========================
+    */
+
+    video.addEventListener(
+      "ended",
+      function () {
+
+        playButton.classList.remove("hide");
+
+        progressBar.style.width = "0%";
 
       }
     );
