@@ -55,7 +55,55 @@
       background: #000;
     }
 
-    /* BARRA PERSONALIZADA */
+    /* BOTÃO PARA ATIVAR SOM */
+    .sound-button {
+      position: absolute;
+
+      top: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+
+      z-index: 20;
+
+      border: 0;
+
+      padding: 12px 20px;
+
+      border-radius: 50px;
+
+      color: #fff;
+
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+
+      background: linear-gradient(
+        90deg,
+        #00c6ff,
+        #7b61ff,
+        #ff4fa3
+      );
+
+      box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.35);
+
+      cursor: pointer;
+
+      transition:
+        opacity 0.3s ease,
+        transform 0.3s ease;
+    }
+
+    .sound-button.hide {
+      opacity: 0;
+      pointer-events: none;
+
+      transform:
+        translateX(-50%)
+        translateY(-10px);
+    }
+
+    /* BARRA DE PROGRESSO */
     .progress-container {
       position: absolute;
 
@@ -89,8 +137,6 @@
 
       border-radius: 100px;
 
-      transition: width 0.1s linear;
-
       box-shadow:
         0 0 8px rgba(123, 97, 255, 0.8),
         0 0 14px rgba(255, 79, 163, 0.5);
@@ -110,9 +156,17 @@
       .progress-container {
         left: 15px;
         right: 15px;
-        bottom: 12px;
+        bottom: 14px;
 
         height: 5px;
+      }
+
+      .sound-button {
+        top: calc(20px + env(safe-area-inset-top));
+
+        font-size: 13px;
+
+        padding: 11px 18px;
       }
     }
 
@@ -131,11 +185,11 @@
       .progress-container {
         max-width: 500px;
 
+        width: calc(100% - 40px);
+
         left: 50%;
 
         transform: translateX(-50%);
-
-        width: calc(100% - 40px);
       }
     }
   </style>
@@ -150,14 +204,27 @@
       autoplay
       muted
       playsinline
+      webkit-playsinline
       preload="auto"
     >
 
-      <source src="meu-video.mp4" type="video/mp4">
+      <source
+        src="meu-video.mp4"
+        type="video/mp4"
+      >
 
       Seu navegador não suporta este vídeo.
 
     </video>
+
+
+    <button
+      class="sound-button"
+      id="soundButton"
+      type="button"
+    >
+      🔊 Toque para ativar o som
+    </button>
 
 
     <div
@@ -180,6 +247,9 @@
     const video =
       document.getElementById("videoPrincipal");
 
+    const soundButton =
+      document.getElementById("soundButton");
+
     const progressContainer =
       document.getElementById("progressContainer");
 
@@ -187,25 +257,94 @@
       document.getElementById("progressBar");
 
 
-    /* AUTOPLAY */
+    /*
+    ==========================
+    AUTOPLAY
+    ==========================
+    */
 
-    window.addEventListener("load", function () {
+    async function iniciarVideo() {
 
       video.muted = true;
 
-      video.play().catch(function (erro) {
+      try {
+
+        await video.play();
+
+      } catch (erro) {
 
         console.log(
           "Autoplay bloqueado:",
           erro
         );
 
-      });
+      }
 
-    });
+    }
 
 
-    /* ATUALIZA A BARRA */
+    window.addEventListener(
+      "load",
+      iniciarVideo
+    );
+
+
+    /*
+    ==========================
+    ATIVAR SOM
+    ==========================
+    */
+
+    async function ativarSom() {
+
+      try {
+
+        video.muted = false;
+
+        video.volume = 1;
+
+        await video.play();
+
+        soundButton.classList.add("hide");
+
+      } catch (erro) {
+
+        console.log(
+          "Não foi possível ativar o áudio:",
+          erro
+        );
+
+      }
+
+    }
+
+
+    soundButton.addEventListener(
+      "click",
+      ativarSom
+    );
+
+
+    soundButton.addEventListener(
+      "touchend",
+      function (event) {
+
+        event.preventDefault();
+
+        ativarSom();
+
+      },
+      {
+        passive: false
+      }
+    );
+
+
+    /*
+    ==========================
+    PROGRESSO DO VÍDEO
+    ==========================
+    */
 
     video.addEventListener(
       "timeupdate",
@@ -214,7 +353,10 @@
         if (video.duration) {
 
           const porcentagem =
-            (video.currentTime / video.duration) * 100;
+            (
+              video.currentTime /
+              video.duration
+            ) * 100;
 
           progressBar.style.width =
             porcentagem + "%";
@@ -225,29 +367,60 @@
     );
 
 
-    /* CLICAR NA BARRA PARA AVANÇAR */
+    /*
+    ==========================
+    AVANÇAR / VOLTAR
+    ==========================
+    */
+
+    function alterarTempo(event) {
+
+      const rect =
+        progressContainer.getBoundingClientRect();
+
+      let posicao;
+
+      if (event.touches) {
+
+        posicao =
+          event.touches[0].clientX -
+          rect.left;
+
+      } else {
+
+        posicao =
+          event.clientX -
+          rect.left;
+
+      }
+
+      const porcentagem =
+        Math.min(
+          Math.max(
+            posicao / rect.width,
+            0
+          ),
+          1
+        );
+
+      video.currentTime =
+        porcentagem *
+        video.duration;
+
+    }
+
 
     progressContainer.addEventListener(
       "click",
-      function (event) {
-
-        const largura =
-          progressContainer.clientWidth;
-
-        const clique =
-          event.offsetX;
-
-        const porcentagem =
-          clique / largura;
-
-        video.currentTime =
-          porcentagem * video.duration;
-
-      }
+      alterarTempo
     );
 
 
-    /* CLICAR NO VÍDEO = PAUSE / PLAY */
+    /*
+    ==========================
+    PLAY / PAUSE
+    ==========================
+    */
 
     video.addEventListener(
       "click",
